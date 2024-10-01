@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang = "en">
+<head>
+    <meta charset = "UTF-8">
+    <meta name = "viewport" content = "width=device-width, initial scale = 1.0">
+    <title> Enter Game Code </title>
+</head>
+<body>
+    <div style="text-align: center; margin-top: 50px;">
+        <h1>Join a Game</h1>
+        <p> Enter the game code: </p>
+        <input type = "text" id="gameCode" placeholder = "Enter game code" required>
+        <button id = "join-game-button" href = "/join_game">Join Game</button>
+    </div>
+
+    <script>
+        
+        document.getElementById('join-game-button').addEventListener('click', function(e){ 
+            e.preventDefault();
+            const gameCode = document.getElementById('gameCode').value;
+            var playerid = Math.floor(Math.random()*1000)
+            
+            if(gameCode.trim() === ""){
+                alert("Enter a valid game code")
+                return;
+            }
+            
+            window.location.href = "/load_game?gamecode=" + encodeURIComponent(gameCode)+ '&playerid=' + encodeURIComponent(playerid);
+        });
+        
+        
+    </script>
+</body>
+</html>

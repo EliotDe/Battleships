@@ -58,7 +58,8 @@
             loadPlayersShips();
         }, false);
 
-
+        const socket = io()
+        
         function sendAttack(x, y, url) {
             /**
             * do a GET request to the server with the x and y coordinates for our attack
@@ -163,6 +164,7 @@
             </div>
         </div>
     </div>
+    
 </body>
 
 </html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Battleships Game</title>
+    <style>
+        .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center; /* Vertically align items in the middle */
+            height: 80vh; /* Full height of the viewport */
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-gap: 0px;
+            width: 40vw; /* 40% of viewport width */
+            height: 40vw; /* Equal to width for a square grid */
+        }
+
+        .small-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-gap: 0px;
+            width: 25vw; /* 25% of viewport width */
+            height: 25vw; /* Equal to width for a square grid */
+        }
+
+        .small-div {
+            padding: 30px 50px 10px 10px;
+        }
+
+        .grid div, .small-grid div {
+            border: 1px solid #000;
+            height: 100%; /* Full height of the grid */
+        }
+
+        .grid div:hover, .small-grid div:hover {
+            background-color: #ddd;
+        }
+
+        #messageBox{
+            height: 10em; /* Adjust as needed */
+            overflow-y: auto; /* Enable vertical scrolling */
+            white-space: pre-line; /* Preserve line breaks */
+            line-height: 1em; /* Adjust as needed */
+        }
+
+
+
+</style>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+    <script>
+        //Get the board that is passed from the python flask code
+        let board = JSON.parse('{{ player_board | tojson | safe}}');
+
+        // Load the grid format once the page has loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPlayersShips();
+        }, false);
+
+        const gamecode = '{{ gamecode }}';
+        const playerid = '{{ playerid }}';
+        const socket = io({autoConnect: false})
+
+        socket.on('connect', function(){
+            console.log('Socket connected');
+        });
+
+        socket.connect()
+        socket.on("connect", function(){
+            socket.emit("working");
+        });
+
+        socket.on('attacksoc', function(data){
+            console.log(data);
+            console.log('SOCKET RECIEVED');
+
+            var gamecode = '{{gamecode}}';
+            //let currentPlayer = '{{playerid}}';
+
+            if(data.room === gamecode){
+                sendAttack(data[playerid]);
+            }
+        });
+
+        console.log('socket connection initialised');
+
+        
+        
+
+        function sendAttack(data) {
+            /**
+            * do a GET request to the server with the x and y coordinates for our attack
+            */
+            waiting = false
+
+            let x = data.x;
+            let y = data.y;
+            // let hit = data.hit;
+            // let AI_Turn = data.AI_Turn;
+            // let log_string = "";
+            
+            console.log('data: ' + data)
+            console.log('AI_Turn: ' + data['AI_Turn'])
+            
+            
+            //Process the response
+            if (data['hit'] === true) {
+                //Change the colour of the div to red if the attack was a hit
+                let cell1 = document.getElementById('cell-' + x + '-' + y);
+                cell1.style.backgroundColor = 'red';
+                console.log('HIT!')
+                // log_string += 'Hit at (), ${y})! ';
+
+            } else {
+                //Change the colour of the div to blue if attack was a miss
+                let cell1 = document.getElementById('cell-' + x + '-' + y);
+                cell1.style.backgroundColor = 'lightblue';
+                console.log('Missed :(')
+                // log_string += 'Miss at (${x}, ${y})! ';
+            }
+
+            //process the AI turn coordinate tupple
+            if(data['AI_Turn']){
+                //console.log('ive got ai turn data', data['AI_turn'])
+                let AI_x = data['AI_Turn'][0];
+                let AI_y = data['AI_Turn'][1];
+                var log_string = "AI attacked location ("+AI_x+","+AI_y+")";
+
+                let cell2 = document.getElementById('small-cell-' + AI_x + '-' + AI_y);
+                if (board[AI_y][AI_x] === null) {
+                    cell2.style.backgroundColor = 'blue';
+                    log_string+= " and missed";
+                    console.log('opponent missed')
+                } else {
+                    cell2.style.backgroundColor = 'red';
+                    log_string+= " and hit";
+                    console.log('opponent missed')
+                }
+                
+            }
+
+            document.getElementById('messageBox').innerHTML = log_string + "<br>" + document.getElementById('messageBox').innerHTML;
+            
+            if (data['finished']){
+                //Game is finished
+                document.getElementById('messageBox').innerHTML = data['finished'].toString();
+                alert(data['finished'].toString());
+            }
+        
+        }
+
+        function loadPlayersShips() {
+            /**
+             * Loops through the board variable is the square is none then sets the cell in the small grid blue.
+             * If the cell has a ship name in it then set the cell to lightgrey.
+             * else set the cell to lightblue
+             */
+            for (let i = 0; i < board.length; i++) {
+                for (let j = 0; j < board[i].length; j++) {
+                    console.log(j, i)
+                    let cell = document.getElementById('small-cell-' + j + '-' + i);
+                    console.log(cell)
+                    if (board[i][j] === null) {
+                        cell.style.backgroundColor = 'lightblue';
+                    } else if (board[i][j] === 'hit') {
+                        cell.style.backgroundColor = 'red';
+                    } else {
+                        cell.style.backgroundColor = 'lightgrey';
+                    }
+                }
+            }
+
+        }
+
+        var waiting = false;
+        function submitAttack(x,y,url){
+            console.log('submitting attack')
+            if(waiting){
+                console.log("Player is trying to move while waiting for a server response.");
+                alert("you've just gone, you muppet!");
+                return;
+            }
+
+            waiting = true;
+            //console.log('Player clicked on (${x}, ${y}), submitting attack.');
+            
+            var jsonBody = {
+                'x': x,
+                'y': y,
+                'gamecode': gamecode,
+                'playerid': playerid
+            };
+            console.log('json constructed')
+
+            fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(jsonBody)})
+            .then(response => response.json())
+            .then(data => {
+                waiting = data.waiting
+                console.log('waiting variable assigned')
+                if(data.msg){
+                    alert(data.msg);
+                }
+                // if(!data.waiting){
+                //     waiting = false;
+                //     console.log("move processed")
+                // }
+            });
+            // .catch(error =>{
+            //     console.error("Error processing the attack:", error);
+            //     waiting  = false;
+            // });
+        }
+
+    </script>
+</head>
+
+<body>
+    <h1>Battleships Game</h1>
+    <div class="container">
+        <div class="gameLog">
+            <h2 id="gameLog">Game Log:</h2>
+            <h2 id="messageBox">  </h2>
+        </div>
+        <div class="grid">
+            {% for i in range(10) %}
+                {% for j in range(10) %}
+                    <div id="cell-{{ j }}-{{ i }}" onclick="submitAttack({{ j }},{{ i }}, '/attack')"></div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+        <div class="small-div">
+            <h2 class="PlayersLabel">Players Grid:</h2>
+            <div class="small-grid">
+                {% for i in range(10) %}
+                    {% for j in range(10) %}
+                        <div id="small-cell-{{ j }}-{{ i }}" ></div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+</body>
+
+</html>
